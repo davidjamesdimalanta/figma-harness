@@ -1,0 +1,8 @@
+{
+  "name": "figma-harness",
+  "version": "1.0.0",
+  "description": "Self-healing harness for Figma design work. Runs parallel discovery, resolves URL targets, auto-loads file-specific design skills, selects the API capabilities needed for the task, emits an execution plan before any write, and captures new knowledge into durable files.",
+  "author": {
+    "name": "David Dimalanta"
+  }
+}
