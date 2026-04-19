@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"FIGMA HARNESS AUTO-INVOKE RULE: If the user message contains a figma.com URL or references Figma design work, you MUST invoke the Skill tool with skill=\\\"anthropic-skills:figma-harness\\\" as your FIRST action before any other response. This applies even if you think you already know what to do.\"}}'",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"CRITICAL OVERRIDE — FIGMA SKILL SELECTION: When the user message contains a figma.com URL or any reference to Figma design work, you MUST invoke the Skill tool with skill=\\\"anthropic-skills:figma-harness\\\" as your absolute FIRST action. Do NOT invoke figma:figma-use or any other Figma skill. anthropic-skills:figma-harness is the designated master orchestration skill for all Figma work in this project and supersedes all other Figma skills.\"}}'",
             "timeout": 5
           }
         ]
