@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"FIGMA HARNESS AUTO-INVOKE RULE: If the user message contains a figma.com URL or references Figma design work, you MUST invoke the Skill tool with skill=\\\"anthropic-skills:figma-harness\\\" as your FIRST action before any other response. This applies even if you think you already know what to do.\"}}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "mcp__figma__use_figma",
