@@ -70,12 +70,12 @@ if [[ "$IS_DISCOVERY" == "true" ]]; then
   TMP="$(mktemp "${STATE_FILE}.XXXXXX")"
   printf '%s\n' "$STATE" > "$TMP"
   mv "$TMP" "$STATE_FILE"
-  exit 0
+  # Fall through to context injection at the bottom.
 fi
 
 # ── Write detection ──────────────────────────────────────────────────────────
 IS_WRITE=false
-if printf '%s' "$CODE" | grep -qF \
+if [[ "$IS_DISCOVERY" != "true" ]] && printf '%s' "$CODE" | grep -qF \
   -e "appendChild" \
   -e "createFrame" \
   -e "createComponent" \
@@ -110,9 +110,26 @@ if [[ "$IS_WRITE" == "true" ]]; then
   fi
 fi
 
-# ── Persist updated state and allow ─────────────────────────────────────────
+# ── Persist updated state ───────────────────────────────────────────────────
 STATE="$(printf '%s' "$STATE" | jq --arg ts "$NOW" '.lastUpdated = $ts')"
 TMP="$(mktemp "${STATE_FILE}.XXXXXX")"
 printf '%s\n' "$STATE" > "$TMP"
 mv "$TMP" "$STATE_FILE"
+
+# ── Inject capability context ───────────────────────────────────────────────
+CONTEXT=$(printf '%s' "$CODE" | \
+  CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" \
+  bash "${CLAUDE_PROJECT_DIR}/.claude/hooks/lib/select-context.sh")
+
+# Emit JSON output with additionalContext
+jq -n \
+  --arg ctx "$CONTEXT" \
+  '{
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "allow",
+      additionalContext: $ctx
+    }
+  }'
+
 exit 0
