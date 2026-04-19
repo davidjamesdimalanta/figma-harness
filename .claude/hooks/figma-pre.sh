@@ -4,7 +4,18 @@ set -euo pipefail
 # figma-pre.sh — PreToolUse hook for mcp__figma__use_figma
 # Enforces discovery-before-write discipline per figma-harness spec.
 
+if [[ -z "${CLAUDE_PROJECT_DIR:-}" ]]; then
+  printf '[figma-harness] CLAUDE_PROJECT_DIR is not set; hook is a no-op.\n' >&2
+  exit 0
+fi
+
+if ! command -v jq &>/dev/null; then
+  printf '[figma-harness] jq is required but not found in PATH.\n' >&2
+  exit 0
+fi
+
 STATE_FILE="${CLAUDE_PROJECT_DIR}/.claude/figma-harness-state.json"
+mkdir -p "$(dirname "$STATE_FILE")"
 
 # Read stdin JSON
 INPUT="$(cat)"
@@ -46,62 +57,54 @@ if [[ -n "$FILE_KEY" ]]; then
 fi
 
 # ── Discovery detection ──────────────────────────────────────────────────────
-DISCOVERY_PATTERNS=(
-  "getLocalVariableCollectionsAsync"
-  "getLocalTextStylesAsync"
-  "search_design_system"
-)
-
 IS_DISCOVERY=false
-for pat in "${DISCOVERY_PATTERNS[@]}"; do
-  if printf '%s' "$CODE" | grep -qF "$pat"; then
-    IS_DISCOVERY=true
-    break
-  fi
-done
+if printf '%s' "$CODE" | grep -qF \
+  -e "getLocalVariableCollectionsAsync" \
+  -e "getLocalTextStylesAsync" \
+  -e "search_design_system"; then
+  IS_DISCOVERY=true
+fi
 
 if [[ "$IS_DISCOVERY" == "true" ]]; then
   STATE="$(printf '%s' "$STATE" | jq --arg ts "$NOW" '.discoveryRan = true | .lastUpdated = $ts')"
-  printf '%s\n' "$STATE" > "$STATE_FILE"
+  TMP="$(mktemp "${STATE_FILE}.XXXXXX")"
+  printf '%s\n' "$STATE" > "$TMP"
+  mv "$TMP" "$STATE_FILE"
   exit 0
 fi
 
 # ── Write detection ──────────────────────────────────────────────────────────
-WRITE_PATTERNS=(
-  "appendChild"
-  "createFrame"
-  "createComponent"
-  "setSharedPluginData"
-  "setPluginData"
-  "insertChild"
-  "createVector"
-  "createText"
-  "createRectangle"
-  "createEllipse"
-  "createPolygon"
-  "createStar"
-  "createLine"
-  "createBooleanOperation"
-  "createImage"
-  "createPage"
-  "deleteNode"
-  "detachInstance"
-)
-
 IS_WRITE=false
-for pat in "${WRITE_PATTERNS[@]}"; do
-  if printf '%s' "$CODE" | grep -qF "$pat"; then
-    IS_WRITE=true
-    break
-  fi
-done
+if printf '%s' "$CODE" | grep -qF \
+  -e "appendChild" \
+  -e "createFrame" \
+  -e "createComponent" \
+  -e "setSharedPluginData" \
+  -e "setPluginData" \
+  -e "insertChild" \
+  -e "createVector" \
+  -e "createText" \
+  -e "createRectangle" \
+  -e "createEllipse" \
+  -e "createPolygon" \
+  -e "createStar" \
+  -e "createLine" \
+  -e "createBooleanOperation" \
+  -e "createImage" \
+  -e "createPage" \
+  -e "deleteNode" \
+  -e "detachInstance"; then
+  IS_WRITE=true
+fi
 
 if [[ "$IS_WRITE" == "true" ]]; then
   DISCOVERY_RAN="$(printf '%s' "$STATE" | jq -r '.discoveryRan // false')"
   if [[ "$DISCOVERY_RAN" != "true" ]]; then
     # Persist state before blocking
     STATE="$(printf '%s' "$STATE" | jq --arg ts "$NOW" '.lastUpdated = $ts')"
-    printf '%s\n' "$STATE" > "$STATE_FILE"
+    TMP="$(mktemp "${STATE_FILE}.XXXXXX")"
+    printf '%s\n' "$STATE" > "$TMP"
+    mv "$TMP" "$STATE_FILE"
     printf '[figma-harness] Discovery has not run this session.\nPaste scripts/discovery-audit.js into use_figma before writing.\n' >&2
     exit 2
   fi
@@ -109,5 +112,7 @@ fi
 
 # ── Persist updated state and allow ─────────────────────────────────────────
 STATE="$(printf '%s' "$STATE" | jq --arg ts "$NOW" '.lastUpdated = $ts')"
-printf '%s\n' "$STATE" > "$STATE_FILE"
+TMP="$(mktemp "${STATE_FILE}.XXXXXX")"
+printf '%s\n' "$STATE" > "$TMP"
+mv "$TMP" "$STATE_FILE"
 exit 0
